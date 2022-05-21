@@ -13,3 +13,9 @@ Even though the dataset CoQA is in an abstractive rather than extractive manner 
 We adapted bert codes from https://github.com/suryamp97/COQA-using-BERT-Natural-Language-Processing-NLP.
 
 In the future, we will construct our own input for this BERT.
+
+
+### T5 for question rewriting
+This part of codes is adapted from https://github.com/Orange-OpenSource/COQAR.
+
+We want to use the rewritten question from a fine-tuned T5 as additional input to Bert for question answering.

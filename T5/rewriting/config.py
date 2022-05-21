@@ -1,0 +1,7 @@
+COQAR_DATA_PATH = './mydata/MyDrive/COQAR/data/COQAR'
+CANARD_DATA_PATH = './mydata/MyDrive/COQAR/data/CANARD'
+QUAC_DATA_PATH = './mydata/MyDrive/COQAR/data/QuAC'
+T5v1_1_SMALL_TOKENIZER_PATH = 'google/t5-v1_1-small'
+T5v1_1_BASE_TOKENIZER_PATH = 'google/t5-v1_1-base'
+T5v1_1_SMALL_PATH = 'google/t5-v1_1-small'
+T5v1_1_BASE_PATH = 'google/t5-v1_1-base'
