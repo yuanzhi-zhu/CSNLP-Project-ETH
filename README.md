@@ -22,4 +22,4 @@ We want to use the rewritten question from a fine-tuned T5 as additional input t
 
 ### Framework
 
-![](CSNLP_framework.png)
+![](images/CSNLP_framework.png)
