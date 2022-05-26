@@ -312,6 +312,7 @@ class QRDataset(Dataset):
         self.rows = []
         if not cuda:
             for x, mask, y in zip(X['input_ids'], X['attention_mask'], Y['input_ids']):
+                # start from -512, truncate
                 self.rows.append({'input_ids': torch.tensor(x[-512:]),
                                 'attention_mask': torch.tensor(mask[-512:]),
                                 'labels': torch.tensor(y)})
