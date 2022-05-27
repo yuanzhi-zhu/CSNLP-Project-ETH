@@ -499,7 +499,10 @@ class Processor(DataProcessor):
         with open(
                 os.path.join(data_dir, self.train_file if filename is None else filename), "r", encoding="utf-8"
         ) as reader:
-            input_data = json.load(reader)["data"]
+            if "T5" in filename:
+                input_data = json.load(reader)
+            else:
+                input_data = json.load(reader)["data"]
 
         threads = min(threads, cpu_count())
         with Pool(threads) as p:
