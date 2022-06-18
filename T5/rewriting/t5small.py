@@ -30,5 +30,5 @@ def make_dataset(data, hparams, cuda = False):
             hparams['history_size'],
             cuda = cuda)
 
-def load_fine_tuned_model():
-    return T5ForConditionalGeneration.from_pretrained('data/fine-tuned-models/t5-small')
+def load_fine_tuned_model(model_path='data/fine-tuned-models/t5-small'):
+    return T5ForConditionalGeneration.from_pretrained(model_path)
