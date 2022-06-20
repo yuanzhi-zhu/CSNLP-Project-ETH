@@ -24,3 +24,5 @@ We want to use the rewritten questions from a fine-tuned T5 as additional input 
 ![](images/CSNLP_framework.png)
 
 Currently (27/May/2022) we tried to both append or replace the original question with the rewritten questions from T5, but the performance in both cases are worser.
+
+(20/Jun/2022) With simply append or replace with the rewritten questions, even with fine-tuning the Bert model, we see no improvement.
