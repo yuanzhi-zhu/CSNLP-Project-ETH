@@ -596,6 +596,7 @@ class Processor(DataProcessor):
 
                 long_question += ' ' + datum['questions'][j]['input_text']
                 if j < i:
+                    # add [SEP] tokens between each question answer pairs
                     long_question += ' ' + datum['answers'][j]['input_text'] + ' [SEP]'
 
                 long_question = long_question.strip()
