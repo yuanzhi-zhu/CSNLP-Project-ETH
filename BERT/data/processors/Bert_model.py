@@ -87,7 +87,7 @@ class BertBaseUncasedModel(BertPreTrainedModel):
         
 ### load dataset for training or evaluation
 
-def load_dataset(tokenizer, input_dir=None, evaluate=True, cache_file_name=None, train_file_name=None, predict_file_name=None):
+def load_dataset(tokenizer, input_dir=None, evaluate=True, cache_file_name=None, train_file_name=None, predict_file_name=None, append_method='original'):
     '''
     converting raw coqa dataset into features to be processed by BERT  
     '''
@@ -124,13 +124,13 @@ def load_dataset(tokenizer, input_dir=None, evaluate=True, cache_file_name=None,
             if evaluate:
                 # process the raw data, load only two historical conversation
                 # def get_examples(self, data_dir, history_len, filename=None, threads=1)
-                examples = processor.get_examples(input_dir, 2, filename=predict_file, threads=1)
+                examples = processor.get_examples(input_dir, 2, filename=predict_file, threads=1, append_method=append_method)
             else:
                 # process the raw data
                 # def get_examples(self, data_dir, history_len, filename=None, threads=1)
                 # number of examples is the same as the number of the QA pairs: 108647
                 # each example is consist of question_text with 2 historical turn and the text, and ground truth start and end positions
-                examples = processor.get_examples(input_dir, 2, filename=train_file, threads=1)
+                examples = processor.get_examples(input_dir, 2, filename=train_file, threads=1, append_method=append_method)
         
         # max_seq_length is the total length for input sequence of BERT 
         features, dataset = Extract_Features(examples=examples,tokenizer=tokenizer,max_seq_length=512, doc_stride=128, max_query_length=64, is_training=not evaluate, threads=1)
@@ -148,9 +148,9 @@ def convert_to_list(tensor):
     return tensor.detach().cpu().tolist()
 
 
-def Write_predictions(model, tokenizer, device, variant_name, input_dir=None,output_directory=None,cache_file_name=None,predict_file_name=None,evaluation_batch_size=1,method=''):
+def Write_predictions(model, tokenizer, device, variant_name, input_dir=None,output_directory=None,cache_file_name=None,predict_file_name=None,evaluation_batch_size=1,method='', append_method='original'):
     # generate catch file processed from the json dataset
-    dataset, examples, features = load_dataset(tokenizer, input_dir=input_dir, evaluate=True, cache_file_name=cache_file_name, predict_file_name=predict_file_name)
+    dataset, examples, features = load_dataset(tokenizer, input_dir=input_dir, evaluate=True, cache_file_name=cache_file_name, predict_file_name=predict_file_name, append_method=append_method)
     
     if not os.path.exists(output_directory+'/'+variant_name):
         os.makedirs(output_directory+'/'+variant_name)
@@ -178,4 +178,5 @@ def Write_predictions(model, tokenizer, device, variant_name, input_dir=None,out
 
     # Get predictions for development dataset and store it in predictions.json
     output_prediction_file = os.path.join(output_directory+'/'+variant_name, "predictions{}.json".format(method))
+    print('save prediction file at: {}'.format(output_prediction_file))
     get_predictions(examples, features, mod_results, 20, 30, True, output_prediction_file, False, tokenizer)

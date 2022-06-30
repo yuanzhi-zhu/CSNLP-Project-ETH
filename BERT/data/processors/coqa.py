@@ -489,7 +489,7 @@ class Processor(DataProcessor):
                 end_index = i
         return (start_index, end_index)
 
-    def get_examples(self, data_dir, history_len, filename=None, threads=1):
+    def get_examples(self, data_dir, history_len, filename=None, threads=1, append_method='original'):
         """
         Returns the training examples from the data directory.      
         """
@@ -507,7 +507,7 @@ class Processor(DataProcessor):
 
         threads = min(threads, cpu_count())
         with Pool(threads) as p:
-            annotate_ = partial(self._create_examples, history_len=history_len)
+            annotate_ = partial(self._create_examples, history_len=history_len, append_method=append_method)
             examples = list(tqdm(
                 p.imap(annotate_, input_data),
                 total=len(input_data),
@@ -516,7 +516,7 @@ class Processor(DataProcessor):
         examples = [item for sublist in examples for item in sublist]
         return examples
 
-    def _create_examples(self, input_data, history_len):
+    def _create_examples(self, input_data, history_len, append_method='original'):
         # nlp = spacy.load('en_core_web_sm', parser=False)
         nlp = spacy.load('en_core_web_sm')
         examples = []
@@ -593,14 +593,87 @@ class Processor(DataProcessor):
                 long_question = ''
                 if j < 0:
                     continue
-
-                long_question += ' ' + datum['questions'][j]['input_text']
+                # if there are appended questions from T5 rewritten
+                if append_method:
+                    question_text = datum['questions'][j]['input_text']
+                    if j == i:
+                        if append_method == 'append':
+                            # for last question, keep the appended question with [SEP] token
+                            if '?' in question_text:
+                                question_text = question_text.split('?')
+                                long_question += ' ' + question_text[0] + '? [SEP][SPLIT]' + question_text[1] + '?'
+                            elif '.' in question_text:
+                                question_text = question_text.split('.')
+                                long_question += ' ' + question_text[0] + '. [SEP][SPLIT]' + question_text[1] + '.'
+                            else:
+                                print(question_text)
+                                raise ValueError('strage question without either ? or .')
+                        elif 'replace' in append_method:
+                            if '?' in question_text:
+                                question_text = question_text.split('?')
+                                long_question += ' ' + question_text[1] + '?'
+                            elif '.' in question_text:
+                                question_text = question_text.split('.')
+                                long_question += ' ' + question_text[1] + '.'
+                            else:
+                                print(question_text)
+                                raise ValueError('strage question without either ? or .')
+                        elif append_method == 'repeat':
+                            if '?' in question_text:
+                                question_text = question_text.split('?')
+                                long_question += ' ' + question_text[0] + '? [SEP][SPLIT]' + question_text[0] + '?'
+                            elif '.' in question_text:
+                                question_text = question_text.split('.')
+                                long_question += ' ' + question_text[0] + '. [SEP][SPLIT]' + question_text[0] + '.'
+                            else:
+                                print(question_text)
+                                raise ValueError('strage question without either ? or .')
+                        # elif append_method == 'original':
+                        #     if '?' in question_text:
+                        #         question_text = question_text.split('?')
+                        #         long_question += ' ' + question_text[0] + '?'
+                        #     elif '.' in question_text:
+                        #         question_text = question_text.split('.')
+                        #         long_question += ' ' + question_text[0] + '.'
+                        #     else:
+                        #         print(question_text)
+                        #         raise ValueError('strage question without either ? or .')
+                        else:
+                            raise ValueError('unrecognized append method')
+                    else:       # j < i
+                        if append_method == 'replace_all':
+                            pass
+                        else:
+                            # for historical questions, only keep the original questions
+                            if '?' in question_text:
+                                question_text = question_text.split('?')
+                                long_question += ' ' + question_text[0] + '?'
+                            elif '.' in question_text:
+                                question_text = question_text.split('.')
+                                long_question += ' ' + question_text[0] + '.'
+                            else:
+                                print(question_text)
+                                raise ValueError('strage question without either ? or .')
+                            # long_question += ' ' + question_text
+                else:   # original
+                    long_question += ' ' + datum['questions'][j]['input_text']
                 if j < i:
-                    # add [SEP] tokens between each question answer pairs
-                    long_question += ' ' + datum['answers'][j]['input_text'] + ' [SEP]'
-
-                long_question = long_question.strip()
-                long_questions.append(long_question)
+                    if append_method == 'replace_all':
+                        pass
+                    else:
+                        # add [SEP] tokens between each question answer pairs
+                        long_question += ' ' + datum['answers'][j]['input_text'] + ' [SEP]'
+                        long_question = long_question.strip()
+                        long_questions.append(long_question)
+                elif j == i:
+                    long_question = long_question.strip()
+                    if append_method == 'append' or append_method == 'repeat':
+                        long_question = long_question.split('[SPLIT]')
+                        long_questions.append(long_question[0])
+                        long_questions.append(long_question[1])
+                    else:
+                        long_questions.append(long_question)
+                    
 
             example = CoqaExample(
                 qas_id=_datum['id'] + ' ' + str(_qas['turn_id']),
