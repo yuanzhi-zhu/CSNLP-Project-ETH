@@ -240,8 +240,12 @@ def load_dataset(tokenizer, input_dir=None, evaluate=True, cache_file_name=None,
         print("Creating features from dataset file at", input_dir)
         if train_file_name is not None:
             train_file = train_file_name
+        else:
+            append_method = ''
         if predict_file_name is not None:
             predict_file = predict_file_name
+        else:
+            append_method = ''
 
         if not "data" and ((evaluate and not predict_file) or (not evaluate and not train_file)):
             raise ValueError("predict_file or train_file not found")
