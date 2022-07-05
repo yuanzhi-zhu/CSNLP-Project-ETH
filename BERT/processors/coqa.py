@@ -11,7 +11,7 @@ import spacy
 import torch
 from torch.utils.data import TensorDataset
 from tqdm import tqdm
-from data.processors.utils import DataProcessor
+from processors.utils import DataProcessor
 
 
 #   This code has been very heavily adapted/used from the hugging face's Bert implmentation on squad dataset. 
@@ -597,7 +597,7 @@ class Processor(DataProcessor):
                 if append_method:
                     question_text = datum['questions'][j]['input_text']
                     if j == i:
-                        if append_method == 'append':
+                        if 'append' in append_method:
                             # for last question, keep the appended question with [SEP] token
                             if '?' in question_text:
                                 question_text = question_text.split('?')
@@ -641,7 +641,7 @@ class Processor(DataProcessor):
                         else:
                             raise ValueError('unrecognized append method')
                     else:       # j < i
-                        if append_method == 'replace_all':
+                        if (append_method == 'replace_all') or (append_method == 'append_all'):
                             pass
                         else:
                             # for historical questions, only keep the original questions

@@ -8,8 +8,11 @@ def get_input_tokenizer():
     tokenizer.add_tokens(['<answer>'])
     return tokenizer
 
-def get_output_tokenizer():
-    tokenizer = T5Tokenizer.from_pretrained(config.T5v1_1_SMALL_TOKENIZER_PATH)
+def get_output_tokenizer(pretrained_path=None):
+    if pretrained_path:
+        tokenizer = T5Tokenizer.from_pretrained(pretrained_path)
+    else:
+        tokenizer = T5Tokenizer.from_pretrained(config.T5v1_1_SMALL_TOKENIZER_PATH)
     tokenizer.add_tokens(['<question>'])
     tokenizer.add_tokens(['<answer>'])
     return tokenizer 

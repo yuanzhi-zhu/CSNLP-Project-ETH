@@ -7,8 +7,8 @@ from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from transformers import BertModel, BertPreTrainedModel
 from tqdm import tqdm, trange
 
-from data.processors.coqa import Extract_Features, Processor, Result
-from data.processors.metrics import get_predictions
+from processors.coqa import Extract_Features, Processor, Result
+from processors.metrics import get_predictions
 
 ### our model is adapted from the baseline model of https://arxiv.org/pdf/1909.10772.pdf
 class BertBaseUncasedModel(BertPreTrainedModel):
@@ -211,7 +211,6 @@ class BertBaseUncasedModel_with_T5(BertPreTrainedModel):
         
         
         
-        
 ### load dataset for training or evaluation
 def load_dataset(tokenizer, input_dir=None, evaluate=True, cache_file_name=None, train_file_name=None, predict_file_name=None, append_method='original'):
     '''
@@ -241,11 +240,13 @@ def load_dataset(tokenizer, input_dir=None, evaluate=True, cache_file_name=None,
         if train_file_name is not None:
             train_file = train_file_name
         else:
-            append_method = ''
+            if not evaluate:
+                append_method = ''
         if predict_file_name is not None:
             predict_file = predict_file_name
         else:
-            append_method = ''
+            if evaluate:
+                append_method = ''
 
         if not "data" and ((evaluate and not predict_file) or (not evaluate and not train_file)):
             raise ValueError("predict_file or train_file not found")
@@ -271,8 +272,7 @@ def load_dataset(tokenizer, input_dir=None, evaluate=True, cache_file_name=None,
     return dataset
     
     
-
-
+    
 def convert_to_list(tensor):
     return tensor.detach().cpu().tolist()
 
@@ -309,3 +309,51 @@ def Write_predictions(model, tokenizer, device, variant_name, input_dir=None,out
     output_prediction_file = os.path.join(output_directory+'/'+variant_name, "predictions{}.json".format(method))
     print('save prediction file at: {}'.format(output_prediction_file))
     get_predictions(examples, features, mod_results, 20, 30, True, output_prediction_file, False, tokenizer)
+    
+    
+
+### wrtiting predictions with fine-tuned model: Bert with T5
+def Write_predictions_with_T5(bert_model, t5_model, bert_tokenizer, device, variant_name, t5_dataset, input_dir=None,output_directory=None,cache_file_name=None,predict_file_name=None,evaluation_batch_size=1,method='', append_method='original'):
+    # generate catch file processed from the json dataset
+    dataset, examples, features = load_dataset(bert_tokenizer, input_dir=input_dir, evaluate=True, cache_file_name=cache_file_name, predict_file_name=predict_file_name, append_method=append_method)
+    
+    if not os.path.exists(output_directory+'/'+variant_name):
+        os.makedirs(output_directory+'/'+variant_name)
+        
+    #   wrtiting predictions once training is complete
+    evalutation_sampler = SequentialSampler(dataset)
+    evaluation_dataloader = DataLoader(dataset, sampler=evalutation_sampler, batch_size=evaluation_batch_size)
+    t5_dataloader = DataLoader(dataset=t5_dataset, batch_size=evaluation_batch_size)
+
+    mod_results = []
+    for batch in tqdm(zip(evaluation_dataloader,t5_dataloader), desc="Evaluating"):
+
+        batch_bert, batch_t5 = batch
+        # model.encoder(input_ids=s, attention_mask=attn, return_dict=True)
+        # pooled_sentence = output.last_hidden_state # shape is [batch_size, seq_len, hidden_size]
+        # # pooled_sentence will represent the embeddings for each word in the sentence
+        # # you need to sum/average the pooled_sentence
+        # pooled_sentence = torch.mean(pooled_sentence, dim=1)
+        t5_embdeding = t5_model.encoder(input_ids = batch_t5['input_ids'], attention_mask = batch_t5['attention_mask'], return_dict=False)
+
+        bert_model.eval()
+        batch_bert = tuple(t.to(device) for t in batch_bert)
+        with torch.no_grad():
+            # each batch has 4 elements, the last is the examle_indeces
+            # inputs = {"input_ids": batch[0],"token_type_ids": batch[1],"attention_mask": batch[2]}
+            # indices of ConvQA example in this batch
+            example_indices = batch_bert[3]
+            outputs = bert_model(batch_bert[0],t5_embdeding,batch_t5,token_type_ids=batch_bert[1],attention_mask=batch_bert[2],head_mask=None)
+            # outputs = model(**inputs)
+        for i, example_index in enumerate(example_indices):
+            eval_feature = features[example_index.item()]
+            unique_id = int(eval_feature.unique_id)
+            output = [convert_to_list(output[i]) for output in outputs]
+            start_logits, end_logits, yes_logits, no_logits, unk_logits = output
+            result = Result(unique_id=unique_id, start_logits=start_logits, end_logits=end_logits, yes_logits=yes_logits, no_logits=no_logits, unk_logits=unk_logits)
+            mod_results.append(result)
+
+    # Get predictions for development dataset and store it in predictions.json
+    output_prediction_file = os.path.join(output_directory+'/'+variant_name, "predictions{}.json".format(method))
+    print('save prediction file at: {}'.format(output_prediction_file))
+    get_predictions(examples, features, mod_results, 20, 30, True, output_prediction_file, False, bert_tokenizer)

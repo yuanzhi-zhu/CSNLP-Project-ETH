@@ -7,6 +7,7 @@ import json
 import re
 import string
 import sys
+import csv
 
 from collections import Counter, OrderedDict
 
@@ -241,6 +242,67 @@ def parse_args():
         parser.print_help()
         sys.exit(1)
     return parser.parse_args()
+    
+    
+    
+def write_failure_cases(input_dir,output_directory,predict_file,variant_name,output_predictions,criteria_flag):
+    '''
+    ## Write all the failure cases
+    Use evaluator.compute_turn_score to evaluate each case
+    e.g.
+    evaluator.compute_turn_score('3dr23u6we5exclen4th8uq9rb42tel', 4, 'her mommy and 5 other sisters')
+    output: {'em': 1.0, 'f1': 1.0} (exact match and f1 score)
+    '''
+    evaluator = CoQAEvaluator(input_dir+'/'+predict_file)
+    
+    pre_file_bert = output_directory+'/'+variant_name+'/'+output_predictions
+    
+    # evaluate
+    with open(pre_file_bert) as f:
+        pred_data = CoQAEvaluator.preds_to_dict(pre_file_bert)
+        
+    # failure criteria
+    criteria_flag = criteria_flag
+    
+    # tuples for all prediction data
+    pre_data_list = []
+    for key in pred_data.keys():
+        pre_data_list.append(key + (pred_data[key],) )
+    
+    # find out all the failure cases: their ids
+    fail_results = []
+    for prediction in pre_data_list:
+        result = evaluator.compute_turn_score(prediction[0],prediction[1],prediction[2])
+        # totally wrong
+        if criteria_flag == 'fully':
+            if result == {'em': 0.0, 'f1': 0.0}:
+                fail_results.append(prediction)
+        # not fully correct
+        elif criteria_flag == 'partial':
+            if result != {'em': 1.0, 'f1': 1.0}:
+                fail_results.append(prediction)
+        # print(result)    
+        
+    # write results
+    with open(output_directory+'/'+variant_name+'/'+'{}_failed_predictions.csv'.format(criteria_flag), mode='w+', encoding='utf-8-sig', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['passage_id','turn_id','story_type', 'story', 'history QA', 'current question', 'gold_answers', 'failed_prediction', 'scores'])
+    
+    with open(output_directory+'/'+variant_name+'/'+'{}_failed_predictions.csv'.format(criteria_flag), mode='a+', encoding='utf-8-sig', newline='') as f:
+        writer = csv.writer(f)
+        
+        for fail_result in fail_results:
+            story_id = fail_result[0]
+            turn_id = fail_result[1]
+            key = (story_id, turn_id)
+            a_gold_list = evaluator.gold_data[key]
+            scores = evaluator.compute_turn_score(fail_result[0],fail_result[1],fail_result[2])
+            # evaluator.questions[turn_id]
+            writer.writerow([story_id,turn_id,evaluator.id_to_source[story_id],evaluator.story_dict[story_id],\
+                             evaluator.question_dict[story_id][:turn_id-1],evaluator.question_dict[story_id][turn_id-1],a_gold_list, fail_result[2], scores])
+
+    return len(fail_results) / len(pre_data_list)
+    
     
     
 def main():
