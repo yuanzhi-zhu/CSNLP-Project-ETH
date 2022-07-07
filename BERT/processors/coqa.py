@@ -658,7 +658,7 @@ class Processor(DataProcessor):
                 else:   # original
                     long_question += ' ' + datum['questions'][j]['input_text']
                 if j < i:
-                    if append_method == 'replace_all':
+                    if (append_method == 'replace_all') or (append_method == 'append_all'):
                         pass
                     else:
                         # add [SEP] tokens between each question answer pairs
@@ -667,7 +667,7 @@ class Processor(DataProcessor):
                         long_questions.append(long_question)
                 elif j == i:
                     long_question = long_question.strip()
-                    if append_method == 'append' or append_method == 'repeat':
+                    if ('append' in append_method) or ('repeat' in append_method):
                         long_question = long_question.split('[SPLIT]')
                         long_questions.append(long_question[0])
                         long_questions.append(long_question[1])

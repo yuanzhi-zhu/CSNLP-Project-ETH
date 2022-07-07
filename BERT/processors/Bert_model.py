@@ -91,7 +91,6 @@ class BertBaseUncasedModel(BertPreTrainedModel):
         
 
 
-
 ### this model is adapted from https://github.com/NTU-SQUAD 
 class MultiLinearLayer(nn.Module):
     def __init__(self, n_layers, input_size, hidden_size, output_size, activation=None):
@@ -126,7 +125,7 @@ class BertBaseUncasedModel_with_T5(BertPreTrainedModel):
         self.yn_layers = MultiLinearLayer(n_layers, hidden_size, hidden_size, 2, activation)
         self.init_weights()
 
-    def forward(self,input_ids,t5_embdeding,batch_t5,token_type_ids=None,attention_mask=None,start_positions=None,end_positions=None,rational_mask=None,cls_idx=None,head_mask=None):
+    def forward(self,input_ids,t5_embdeding,batch_t5,t5_pooled=False,token_type_ids=None,attention_mask=None,start_positions=None,end_positions=None,rational_mask=None,cls_idx=None,head_mask=None):
         #   Bert-base outputs
         outputs = self.bert(input_ids,token_type_ids=token_type_ids,attention_mask=attention_mask,head_mask=head_mask)
         # output_vector.size() = [Batch, max_seq_length, hidden_size]
@@ -135,12 +134,23 @@ class BertBaseUncasedModel_with_T5(BertPreTrainedModel):
         # further processed by a Linear layer and a Tanh activation function.
         bert_output_vector, bert_pooled_output = outputs
         
+        
+        ### use pooled t5 output as sentence embedding
+        if t5_pooled:
+            t5_embdeding = torch.mean(t5_embdeding[0], dim=1)
+            t5_embdeding = t5_embdeding[:,None,:]
+            batch_t5['attention_mask']=batch_t5['attention_mask'].to(dtype=torch.float64)
+            # attention_mask_bert = attention_mask_bert.type(torch.DoubleTensor)
+            attention_mask_t5 = torch.mean(batch_t5['attention_mask'], dim=1)
+            attention_mask_t5 = attention_mask_t5[:,None]
+        else:
+            t5_embdeding = t5_embdeding[0]
+            attention_mask_t5 = batch_t5['attention_mask']
         # get final output
-        output_vector = torch.cat((bert_output_vector,t5_embdeding[0]),dim=1)
+        output_vector = torch.cat((bert_output_vector,t5_embdeding),dim=1)
         
         # final attention mask
         attention_mask_bert = attention_mask
-        attention_mask_t5 = batch_t5['attention_mask']
         attention_mask = torch.cat((attention_mask_bert,attention_mask_t5),dim=1)
 
         #   rational logits (rationale probability to calculate start and end logits)
@@ -156,7 +166,14 @@ class BertBaseUncasedModel_with_T5(BertPreTrainedModel):
 
         # on to find answer in the article
         segment_mask = token_type_ids.type(output_vector.dtype)
-        segment_mask = torch.cat((segment_mask,segment_mask),dim=1)
+        ### use pooled t5 output as sentence embedding
+        if t5_pooled:
+            segment_mask=segment_mask.to(dtype=torch.float64)
+            segment_mask_t5 = torch.mean(segment_mask, dim=1)
+            segment_mask_t5 = segment_mask_t5[:,None]
+        else:
+            segment_mask_t5 = segment_mask
+        segment_mask = torch.cat((segment_mask,segment_mask_t5),dim=1)
         rational_logits = rational_logits.squeeze(-1) * segment_mask
         
         # get span logits
