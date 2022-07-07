@@ -330,7 +330,7 @@ def Write_predictions(model, tokenizer, device, variant_name, input_dir=None,out
     
 
 ### wrtiting predictions with fine-tuned model: Bert with T5
-def Write_predictions_with_T5(bert_model, t5_model, bert_tokenizer, device, variant_name, t5_dataset, input_dir=None,output_directory=None,cache_file_name=None,predict_file_name=None,evaluation_batch_size=1,method='', append_method='original'):
+def Write_predictions_with_T5(bert_model, t5_model, bert_tokenizer, device, variant_name, t5_dataset, t5_pooled=False, input_dir=None,output_directory=None,cache_file_name=None,predict_file_name=None,evaluation_batch_size=1,method='', append_method='original'):
     # generate catch file processed from the json dataset
     dataset, examples, features = load_dataset(bert_tokenizer, input_dir=input_dir, evaluate=True, cache_file_name=cache_file_name, predict_file_name=predict_file_name, append_method=append_method)
     
@@ -360,7 +360,7 @@ def Write_predictions_with_T5(bert_model, t5_model, bert_tokenizer, device, vari
             # inputs = {"input_ids": batch[0],"token_type_ids": batch[1],"attention_mask": batch[2]}
             # indices of ConvQA example in this batch
             example_indices = batch_bert[3]
-            outputs = bert_model(batch_bert[0],t5_embdeding,batch_t5,token_type_ids=batch_bert[1],attention_mask=batch_bert[2],head_mask=None)
+            outputs = bert_model(batch_bert[0],t5_embdeding,batch_t5,t5_pooled=t5_pooled,token_type_ids=batch_bert[1],attention_mask=batch_bert[2],head_mask=None)
             # outputs = model(**inputs)
         for i, example_index in enumerate(example_indices):
             eval_feature = features[example_index.item()]
