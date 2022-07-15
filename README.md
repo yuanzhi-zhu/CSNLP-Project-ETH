@@ -2,9 +2,10 @@
 This repository provides the supplementary code for the paper "Combined Transformer for Conversational Question
 Answering" submitted as a course project for Computational Semantics for Natural Language Processing at ETH Zürich.
 
-### Framework
+### Frameworkw
 
 ![](images/CSNLP_framework.png)
+![](images/CSNLP_framework2.png)
 
 ### Hands-on with BERT pre-trained model with QA
 As a reference, we used https://towardsdatascience.com/question-answering-with-a-fine-tuned-bert-bc4dafd45626
